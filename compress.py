@@ -17,7 +17,7 @@ print (x3[0, :10])
 print ('train: ', x1.shape, x2.shape, x3.shape)
 
 x = np.concatenate([x2], axis=1)
-pre = preprocessing.Normalizer()
+pre = preprocessing.Normalizer(norm='l2')
 x = pre.transform(x)
 #print (x.shape)
 #x = x[:6000]

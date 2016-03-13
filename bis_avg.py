@@ -1,13 +1,11 @@
 import numpy as np
 import xgboost as xgb
 from sklearn import cross_validation, metrics
-import misvm
 import sklearn
 from sklearn import ensemble, neighbors, decomposition, preprocessing
 import pandas as pd
 from sklearn import decomposition
 from collections import defaultdict
-
 import os
 
 def read_data(mode):
@@ -26,15 +24,15 @@ def read_data(mode):
             print (index)
     return biz_dict
 
-train_biz_dict = read_data('train')
-
-y_dict = {}
-for row in pd.read_csv('train.csv').values:
-    y = np.zeros(9)
-    if str(row[1]) != 'nan':
-        for label in row[1].split(' '):
-            y[label] = 1
-    y_dict[str(row[0])] = y
+def read_y():
+    y_dict = {}
+    for row in pd.read_csv('train.csv').values:
+        y = np.zeros(9)
+        if str(row[1]) != 'nan':
+            for label in row[1].split(' '):
+                y[label] = 1
+        y_dict[str(row[0])] = y
+    return y_dict
 
 def read_vlad(mode):
     l = 10000
@@ -42,51 +40,71 @@ def read_vlad(mode):
         l = 2000
     vlad_business = np.genfromtxt('vlad_business_' + mode, dtype='str')
     vlad_feat = np.fromfile('vlad_' + mode, dtype=np.float32).reshape((l, -1))
-    if mode == 'train':
-        read_vlad.pca.fit(vlad_feat)
-    vlad_feat = read_vlad.pca.transform(vlad_feat)
     
+#    if mode == 'train':
+#        read_vlad.pca.fit(vlad_feat)
+    vlad_feat = preprocessing.normalize(vlad_feat)
+#    vlad_feat = read_vlad.pca.transform(vlad_feat)
     vlad_business_dict = {idx: feat for idx, feat in  zip(vlad_business, vlad_feat[:])}
     return vlad_business_dict
 
+def pool(biz_dict, vlad_dict, mode):
+    if mode == 'train':
+        y_dict = read_y()
+    y = np.zeros((0, 9))
+    x = np.array([])
+    x_vlad = np.array([])
+    
+    for key, value in sorted(biz_dict.items()):
+        avg = np.array(value).sum(axis=0) / len(value)
+        vlad = vlad_dict.get(key)
+#        vlad = preprocessing.normalize(vlad)
+#        print(vlad.shape)
+#        feat = np.concatenate([avg, vlad], axis=0)
+#        feat = preprocessing.Normalizer().fit_transform(feat)
+#        feat = avg
+        x = np.vstack((x, avg)) if x.size else avg
+        x_vlad = np.vstack((x_vlad, vlad)) if x_vlad.size else vlad
+        
+        if mode == 'train':
+            y = np.vstack((y, y_dict.get(key)))        
+    return (x, x_vlad, y) if mode == 'train' else (x, x_vlad)
+
+train_biz_dict = read_data('train')
 read_vlad.pca = decomposition.PCA(n_components=1024)
-#read_vlad.pca = decomposition.NMF(n_components=32)
 vlad_train = read_vlad('train')
+#vlad_train = []
+x, x_vlad, y = pool(train_biz_dict, vlad_train, 'train')
+#np.save('xbin.npy', x)
+#np.save('ybin.npy', y)
+#np.save('xvladbin.npy', x_vlad)
 
-y = np.zeros((0, 9))
-x = np.array([])
-x_test = np.array([])
+#x = np.load('xbin.npy') 
+#y = np.load('ybin.npy')
+#x_vlad = np.load('xvladbin.npy')
 
-for key, value in sorted(train_biz_dict.items()):
-    avg = np.array(value).sum(axis=0) / len(value)
-    vlad = vlad_train.get(key)
-#    vlad = preprocessing.normalize(vlad, axis=0)
-#    feat = np.concatenate([avg, vlad], axis=0)
-    feat = avg
-#    feat = preprocessing.normalize(feat)
-    x = np.vstack((x, feat)) if x.size else feat
-    y = np.vstack((y, y_dict.get(key)))
+print (x.shape, x_vlad.shape, y.shape)
 
-print (x.shape, y.shape)
+#for i in range(9):
+#    q, _ = np.histogram(y[:, i].ravel(), bins=[0, 0.5, 1])
+#    print(i + 1, q, q[0] / q[1])
 
-clfs = [sklearn.svm.SVC(C=2., gamma=0.03), 
-        sklearn.linear_model.LogisticRegression(C=0.1),
-        sklearn.svm.SVC(C=2., gamma=0.03),
-        sklearn.svm.SVC(C=1.5, gamma=0.03),
-        sklearn.linear_model.LogisticRegression(C=0.1),
-        sklearn.svm.SVC(C=1.5, gamma=0.04),
-        sklearn.linear_model.LogisticRegression(C=0.1),
-        sklearn.svm.SVC(C=2, gamma=0.03),
-        sklearn.linear_model.LogisticRegression(C=0.1)]
-         
-clf1 = sklearn.linear_model.LogisticRegression(C=100)
-clf2 = sklearn.svm.LinearSVR(C=10)
+clf1 = sklearn.linear_model.LogisticRegression(C=200)
+clf1vlad = sklearn.linear_model.LogisticRegression(C=1)
+
+clf2 = sklearn.svm.LinearSVR(C=5)
+#clf2vlad = sklearn.svm.LinearSVR(C=1)
+
+#clf2 = sklearn.svm.SVR(C=0.1, kernel='linear')
+#clf1 = sklearn.linear_model.LogisticRegressionCV(Cs=100)
 #clf1 = sklearn.ensemble.RandomForestClassifier(n_estimators=100)
-#clf1 = sklearn.neighbors.KNeighborsClassifier()
+#clf1 = sklearn.neighbors.KNeighborsClassifier(n_neighbors=50)
+#clf1 = sklearn.svm.SVC(C=10, gamma=0.03, kernel='linear', probability=True)
+clf3 = xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=200, nthread=8,
+                                max_depth=5, subsample=0.9, colsample_bytree=0.9)
+clf3vlad = xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=200, nthread=8,
+                                max_depth=5, subsample=0.9, colsample_bytree=0.9)
 
-#clf = sklearn.svm.SVC(C=2, gamma=0.03)
-clf3 = xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=500, nthread=8,
-                                max_depth=7, subsample=0.9, colsample_bytree=0.9)
 #kf = cross_validation.KFold(x.shape[0], n_folds=5, shuffle=True, random_state=0)
 #res = 0
 #for i in range(9):
@@ -107,54 +125,90 @@ clf3 = xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=500, nthread=8,
 #
 #print (res / kf.n_folds)
 
+param = {'booster':'gblinear',
+     'max_depth':5,
+     'eta':0.1,
+     'silent':1,
+     'alpha':0.,
+     'lambda':0.,
+     'objective':'reg:logistic',
+     'subsample':0.8,
+      'colsample_bytree': 0.8,
+     'eval_metric':'auc'
+     }
+th = np.array([0.4, 0.45, 0.45, 0.4, 0.4, 0.45, 0.5, 0.4, 0.5])
 res = 0
-cn = 0
-#for i in range(9):
-#    kf = cross_validation.StratifiedKFold(y[:, i], n_folds=3, shuffle=True, random_state=0)    
+n_folds = 5
+#for i in range(0, 9):
+#    yi_score = np.zeros((0, 1))
+#    kf = cross_validation.StratifiedKFold(y[:, i], n_folds=n_folds, shuffle=True, random_state=0)    
 #    for train_index, test_index in kf:        
 #        X_train, X_val = x[train_index], x[test_index]
+#        X_vlad_train, X_vlad_val = x_vlad[train_index], x_vlad[test_index]
 #        y_train, y_val = y[train_index], y[test_index]
 ##        rrr = np.zeros((X_val.shape[0], 9), dtype=np.int32)    
+#
 #        clf1.fit(X_train, y_train[:, i])
 #        preds1 = clf1.predict_proba(X_val)[:, 1]
-#        clf2.fit(X_train, y_train[:, i])
-#        preds2 = clf2.predict(X_val)
+#        clf1vlad.fit(X_vlad_train, y_train[:, i])
+#        preds1vlad = clf1vlad.predict_proba(X_vlad_val)[:, 1]
+#
+##        clf2.fit(X_train, y_train[:, i])
+##        preds2 = clf2.predict(X_val)
+##        clf2vlad.fit(X_vlad_train, y_train[:, i])
+##        preds2vlad = clf2vlad.predict(X_vlad_val)
+#        
 #        clf3.fit(X_train, y_train[:, i])
 #        preds3 = clf3.predict_proba(X_val)[:, 1]
-#                
-#        preds = (preds1 + preds2 + preds3) > 1.2
+#        clf3vlad.fit(X_vlad_train, y_train[:, i])
+#        preds3vlad = clf3vlad.predict_proba(X_vlad_val)[:, 1]
+#        
+##        dtrain = xgb.DMatrix(X_train, y_train[:, i])
+##        dval = xgb.DMatrix(X_val, y_val[:, i])
+##        bst = xgb.Booster(param, [dtrain, dval])
+##        for it in range(30):
+##            bst.update(dtrain, it)
+##        preds4 = np.array(bst.predict(dval))
+#        preds = (preds1 + preds1vlad + preds3 + preds3vlad) > 0.42 * 4
 ##        preds = clf1.fit(X_train, y_train[:, i]).predict_proba(X_val)[:, 1] > 0.4
 ##        rrr[:, i] = preds
-##        print (i, metrics.f1_score(y_val[:, i], preds))
 #        score = metrics.f1_score(y_val[:, i], preds, average='binary')
-#        res += score
-#        cn += 1
-##    print ('f1: ', score)
-#print (res / cn)
+#        yi_score = np.vstack((yi_score, score))
+#    print (i, yi_score.mean())
+#    res += yi_score.sum()
+#print (res / (n_folds * 9))
 #qwe
 
 test_biz_dict = read_data('test')
-#vlad_test = read_vlad('test')
+vlad_test = read_vlad('test')
+#vlad_test = []
+X_train = x
+X_vlad_train = x_vlad
+y_train = y
 
-for key, value in sorted(test_biz_dict.items()):
-    avg = np.array(value).sum(axis=0) / len(value)    
-#    vlad = vlad_test.get(key)
-#    feat = np.concatenate([avg, vlad], axis=0)
-    feat = avg
-#    feat = preprocessing.normalize(feat)
-    x_test = np.vstack((x_test, feat)) if x_test.size else feat
+X_val, X_vlad_val = pool(test_biz_dict, vlad_test, 'test')
 
-test_preds = np.zeros((x_test.shape[0], 9), dtype=np.int32)
+test_preds = np.zeros((X_val.shape[0], 9), dtype=np.int32)
 for i in range(9):
-#    clf.fit(x, y[:, i])
-    clf1.fit(x, y[:, i])
-    preds1 = clf1.predict_proba(x_test)[:, 1]
-    clf2.fit(x, y[:, i])
-    preds2 = clf2.predict(x_test)
-    clf3.fit(x, y[:, i])
-    preds3 = clf3.predict_proba(x_test)[:, 1]
-    preds = (preds1 + preds2 + preds3) > 1.2
+
+    clf1.fit(X_train, y_train[:, i])
+    preds1 = clf1.predict_proba(X_val)[:, 1]
+    clf1vlad.fit(X_vlad_train, y_train[:, i])
+    preds1vlad = clf1vlad.predict_proba(X_vlad_val)[:, 1]
+
+#        clf2.fit(X_train, y_train[:, i])
+#        preds2 = clf2.predict(X_val)
+#        clf2vlad.fit(X_vlad_train, y_train[:, i])
+#        preds2vlad = clf2vlad.predict(X_vlad_val)
+    
+    clf3.fit(X_train, y_train[:, i])
+    preds3 = clf3.predict_proba(X_val)[:, 1]
+    clf3vlad.fit(X_vlad_train, y_train[:, i])
+    preds3vlad = clf3vlad.predict_proba(X_vlad_val)[:, 1]
+    preds = (preds1 + preds1vlad + preds3 + preds3vlad) > 0.42 * 4
+
     test_preds[:, i] = preds
+    print(i)
 
 f = open('res', 'w')
 print('business_id,labels', file=f)

@@ -12,18 +12,17 @@ extern "C" {
 #include "../vl/mathop.h"
 #include "../vl/vlad.h"
 #include "../vl/kmeans.h"
+#include "../vl/fisher.h"
+#include "../vl/gmm.h"
 }
-VlKMeans *kmeans_;
-vl_size dimension = 1024;
-vl_size numCenters = 2;
 
-void learn_kmeans()
+vl_size dimension = 128;
+vl_size numCenters = 16;
+VlGMM *gmm;
+
+void learn_gmm()
 {
 	const vl_size numData = 400000;
-	vl_size maxiter = 10;
-	vl_size maxComp = 50;
-	vl_size maxrep = 1;
-	vl_size ntrees = 10;
 
 	vector<float> data(numData * dimension);
 	vector<float> buf(dimension);
@@ -44,58 +43,25 @@ void learn_kmeans()
 			data[q * dimension + i] = buf[i];
 	}
 
-	cout << "reading completed" << endl;
-
-//		VlKMeansAlgorithm algorithm = VlKMeansANN;
-		VlKMeansAlgorithm algorithm = VlKMeansLloyd;
-//    VlKMeansAlgorithm algorithm = VlKMeansElkan;
-
-	VlVectorComparisonType distance = VlDistanceL2;
-	kmeans_ = vl_kmeans_new (VL_TYPE_FLOAT,distance);
-
-	vl_kmeans_set_verbosity	(kmeans_, 1);
-	vl_kmeans_set_max_num_iterations (kmeans_, maxiter) ;
-	vl_kmeans_set_max_num_comparisons (kmeans_, maxComp) ;
-	vl_kmeans_set_num_repetitions (kmeans_, maxrep) ;
-	vl_kmeans_set_num_trees (kmeans_, ntrees);
-	vl_kmeans_set_algorithm (kmeans_, algorithm);
-	vl_set_num_threads(8);
-//	vl_kmeans_set_initialization(kmeans_, VlKMeansRandomSelection);
-	vl_kmeans_set_initialization(kmeans_, VlKMeansPlusPlus);
-
-	srand(time(0));
-
-	vl_kmeans_cluster(kmeans_, data.data(), dimension, numData, numCenters);
+	gmm = vl_gmm_new (VL_TYPE_FLOAT, dimension, numCenters);
+	vl_gmm_set_initialization(gmm, VlGMMKMeans);
+	vl_gmm_cluster (gmm, data.data(), numData);
 }
 
 Mat compute_vlad(const Mat &desc)
 {
-	int num_samples_to_encode = desc.rows;
+	vector<float> enc(2 * dimension * numCenters);
 
-	float *data_to_encode = (float*)vl_malloc(sizeof(float) * dimension * num_samples_to_encode);
+	vl_fisher_encode(enc.data(), VL_TYPE_FLOAT,
+		 vl_gmm_get_means(gmm), dimension, numCenters,
+		 vl_gmm_get_covariances(gmm),
+		 vl_gmm_get_priors(gmm),
+		 reinterpret_cast<float*>(desc.data), desc.rows,
+		 VL_FISHER_FLAG_IMPROVED
+		 );
 
-	for (int i = 0; i < desc.rows; i++)
-		for (int j = 0; j < desc.cols; j++)
-			data_to_encode[i * dimension + j] = desc.at<float>(i, j);
-
-	vl_uint32 *indexes = (vl_uint32*)vl_malloc(sizeof(vl_uint32) * num_samples_to_encode);
-	float *distances = (float*)vl_malloc(sizeof(float) * num_samples_to_encode);
-
-	vl_kmeans_quantize(kmeans_, indexes, distances, data_to_encode, num_samples_to_encode);
-
-	float *assignments2 = (float*)vl_malloc(sizeof(float) * num_samples_to_encode * numCenters);
-	memset(assignments2, 0, sizeof(float) * num_samples_to_encode * numCenters);
-
-	for(int i = 0; i < num_samples_to_encode; i++)
-	{
-		assignments2[i * numCenters + indexes[i]] = 1.;
-	}
-
-	float *enc = (float*)vl_malloc(sizeof(float) * dimension * numCenters);
-	vl_vlad_encode (enc, VL_TYPE_FLOAT, vl_kmeans_get_centers(kmeans_), dimension, numCenters, data_to_encode, num_samples_to_encode, assignments2, VL_VLAD_FLAG_NORMALIZE_COMPONENTS);
-//VL_VLAD_FLAG_SQUARE_ROOT   VL_VLAD_FLAG_NORMALIZE_MASS VL_VLAD_FLAG_NORMALIZE_COMPONENTS
-	Mat tar(1, numCenters * dimension, CV_32FC1);
-	tar.data = (uchar*)enc;
+	Mat tar(1, 2 * numCenters * dimension, CV_32FC1);
+	memcpy(tar.data, enc.data(),  2 * numCenters * dimension * 4);
 
 	return tar;
 }
@@ -147,7 +113,8 @@ unordered_map<string, int[9]> read_labels()
 
 int main()
 {
-	learn_kmeans();
+	learn_gmm();
+
 	auto labels = read_labels();
 	vector<string> modes = {"train", "test"};
 	for (auto mode : modes)

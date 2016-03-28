@@ -15,7 +15,6 @@ def read_data(mode):
     photo_to_biz = defaultdict(list)
     for (x, y) in df.values:
         photo_to_biz[x].append(y)
-#    photo_to_biz = {str(x): str(y) for (x, y) in df.values}
     for (image_id, feature) in zip(id_list, photo_features):
         biz_ids = photo_to_biz.get(image_id)
         for biz_id in biz_ids:
@@ -34,8 +33,11 @@ def gen_features(biz_dict, filename):
             for label in row[1].split(' '):
                 y[i, label] = 1
         features = np.array(biz_dict.get(biz_id))
-        biz_x = features.mean(axis=0)
+#        biz_x = features.mean(axis=0)
+        biz_x = np.hstack([features.mean(axis=0), features.shape[0]])
         x = np.vstack((x, biz_x)) if x.size else biz_x
+        if i % 100 == 0:
+            print(i)
     return x, y
 
 def read_vlad(filename, mode):
@@ -49,13 +51,13 @@ def read_vlad(filename, mode):
 
 for mode, filename in [('test', 'sample_submission.csv'), ('train', 'train.csv')]:
 
-#    biz_dict = read_data(mode)
-#    x, y = gen_features(biz_dict,  filename)
-#    np.save(mode + '_21k_full', x)
+    biz_dict = read_data(mode)
+    x, y = gen_features(biz_dict,  filename)
+    np.save(mode + '_21k_1024_cnt', x)
     
-    vlad_biz_train = read_vlad('vlad', mode)
-    x, y = gen_features(vlad_biz_train, filename)
-    np.save(mode + '_vlad_2_21k_full', x)
+#    vlad_biz_train = read_vlad('vlad', mode)
+#    x, y = gen_features(vlad_biz_train, filename)
+#    np.save(mode + '_v3_256_vlad_8_nc', x)
     
     if mode == 'train':
         np.save('y_train', y)

@@ -5,19 +5,24 @@ from classifier_chain import ClassifierChain
 from sklearn import cross_validation, metrics, ensemble, neighbors, decomposition, preprocessing
 from nn_wrapper import nn_wrapper
 
-clf1 = sklearn.linear_model.LogisticRegression(C=5)
-clf1vlad = sklearn.linear_model.LogisticRegression(C=1)
+class xgb_wrapper:
 
-clf2 = sklearn.svm.LinearSVR(C=5)
-#clf2vlad = sklearn.svm.LinearSVR(C=1)
+    def __init__(self):
+        self.clf = xgb.Booster()
 
-#clf2 = sklearn.svm.SVR(C=0.1, kernel='linear')
-#clf1 = sklearn.linear_model.LogisticRegressionCV(Cs=100)
-#clf1 = sklearn.ensemble.RandomForestClassifier(n_estimators=100)
-#clf1 = sklearn.neighbors.KNeighborsClassifier(n_neighbors=50)
-#clf1 = sklearn.svm.SVC(C=10, gamma=0.03, kernel='linear', probability=True)
-clf3 = xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=200, nthread=8,
-                                max_depth=5, subsample=0.9, colsample_bytree=0.9)
+    def fit(self, X, y):
+        d = xgb.DMatrix(X, y)
+        self.clf = xgb.Booster(param, [d])
+        for i in range(50):
+            self.clf.update(d, i)
+
+    def predict(self, X):
+        d = xgb.DMatrix(X)
+        preds = self.clf.predict(d).reshape(-1, 1)       
+        return preds.ravel()
+#        return np.hstack([preds, preds])
+
+
 
 param = {'booster':'gblinear',
      'max_depth':5,
@@ -26,16 +31,16 @@ param = {'booster':'gblinear',
      'alpha':0.,
      'lambda':0.,
      'objective':'reg:logistic',
-     'subsample':0.8,
-      'colsample_bytree': 0.8,
+     'subsample':1.0,
+      'colsample_bytree': 1.0,
      'eval_metric':'auc'
      }
 
 features = [
 #('v3_256_vlad_8_nc.npy', 0.1),
-('res_full_l2.npy', 1),
-#('v3_2048.npy', 1),
 #('21k_1024.npy', 1),
+('21k_50k_2048.npy', 1),
+#('v3_2048.npy', 1),
 #('21k_color50.npy', 1),
 ]
 def jo(mode, args):
@@ -43,11 +48,14 @@ def jo(mode, args):
     return x
     
 clf = sklearn.linear_model.LogisticRegression(C=100)
-#clf = xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=200, nthread=8,
-#                                max_depth=5, subsample=0.8, colsample_bytree=0.9)
+clf = sklearn.linear_model.Ridge(alpha=0.1)
+#clf = sklearn.ensemble.BaggingRegressor(clf, n_estimators=8, n_jobs=-1, max_features=0.9, max_samples=0.9, bootstrap=False)
+
+#clf = xgb.sklearn.XGBClassifier(learning_rate=0.2, n_estimators=50, nthread=8,
+#                                max_depth=4, subsample=0.8, colsample_bytree=0.8)
 #clf = sklearn.ensemble.RandomForestClassifier(n_jobs=-1)
-#clf = nn_wrapper()
-nn_clf = nn_wrapper()
+#clf = xgb_wrapper()
+clf = nn_wrapper()
 
 x = jo('train', features)   
 #x[:, 1024] = np.sqrt(x[:, 1024])
@@ -67,20 +75,24 @@ for train_index, test_index in kf:
     X_train, X_val = x[train_index], x[test_index]
     y_train, y_val = y[train_index], y[test_index]
 
-    preds_br = np.zeros((X_val.shape[0], 9))
+#    preds_br = np.zeros((X_val.shape[0], 9))
 #    for i in range(0, 9):
 #        clf.fit(X_train, y_train[:, i])
-#        preds_br[:, i] = clf.predict_proba(X_val)[:, 1]        
-
-    nn_preds = np.array([])
-    n_iter = 1
-    for i in range(n_iter):    
-        nn_clf.fit(X_train, y_train)
-        preds = nn_clf.predict_proba(X_val)
-        nn_preds = nn_preds + preds if nn_preds.size else preds
-    nn_preds = (nn_preds / n_iter)
+#        preds_br[:, i] = clf.predict(X_val)
     
-    preds_br = (preds_br + nn_preds)
+#    multi output
+    clf.fit(X_train, y_train)
+    preds_br = clf.predict(X_val)
+
+#    nn_preds = np.array([])
+#    n_iter = 1
+#    for i in range(n_iter):    
+#        nn_clf.fit(X_train, y_train)
+#        preds = nn_clf.predict_proba(X_val)
+#        nn_preds = nn_preds + preds if nn_preds.size else preds
+#    nn_preds = (nn_preds / n_iter)
+    
+#    preds_br = (preds_br + nn_preds)
     preds_br = preds_br > 0.42
  
     score_сс = metrics.f1_score(y_val, preds_br, average='samples')

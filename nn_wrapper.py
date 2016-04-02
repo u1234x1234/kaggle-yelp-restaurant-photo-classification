@@ -14,21 +14,25 @@ class nn_wrapper():
     def get_mlp(self):
         data = mx.symbol.Variable('data')
         label = mx.symbol.Variable('label')
-        x  = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=256)
-#        x = mx.symbol.BatchNorm(data=x)
+        x  = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=1024)
+        x = mx.symbol.BatchNorm(data=x)
 #        x = mx.symbol.Activation(data = x, name='relu1', act_type="relu")
         x = mx.symbol.LeakyReLU(data=x)
+#        x = mx.symbol.BatchNorm(data=x) 
         x = mx.symbol.Dropout(data = x, p=0.5)
-        x  = mx.symbol.FullyConnected(data = x, name = 'fc2', num_hidden=40)
-    #    x = mx.symbol.BatchNorm(data=x)
+        x  = mx.symbol.FullyConnected(data = x, name = 'fc2', num_hidden=512)
+#        x = mx.symbol.BatchNorm(data=x)
         x = mx.symbol.LeakyReLU(data=x)
 #        x = mx.symbol.Activation(data = x, act_type="relu")
-#        x = mx.symbol.Dropout(data = x, p=0.5)
+        x = mx.symbol.Dropout(data = x, p=0.5)
         
-    #    x  = mx.symbol.FullyConnected(data = x, name = 'fc12', num_hidden=300)
-    #    x = mx.symbol.BatchNorm(data=x)
-    #    x = mx.symbol.LeakyReLU(data=x)    
-    #    x = mx.symbol.Dropout(data = x, p=0.5)
+        x  = mx.symbol.FullyConnected(data = x, name = 'fc3', num_hidden=512)
+#        x = mx.symbol.BatchNorm(data=x)
+        x = mx.symbol.LeakyReLU(data=x)    
+#        x  = mx.symbol.FullyConnected(data = x, name = 'fc33', num_hidden=128)
+#        x = mx.symbol.BatchNorm(data=x)
+#        x = mx.symbol.LeakyReLU(data=x)    
+#        x = mx.symbol.Dropout(data = x, p=0.5)
         
     #    x  = mx.symbol.FullyConnected(data = x, name = 'fc22', num_hidden=256)
     #    x = mx.symbol.BatchNorm(data=x)
@@ -38,7 +42,7 @@ class nn_wrapper():
     #    x  = mx.symbol.FullyConnected(data = x, name = 'fc3', num_hidden = 200)
     #    x = mx.symbol.Activation(data = x, name='relu3', act_type="relu")
     #    x = mx.symbol.Dropout(data = x, p=0.5)
-        x  = mx.symbol.FullyConnected(data = x, name='fc4', num_hidden=9) 
+        x  = mx.symbol.FullyConnected(data = x, name='fc4', num_hidden=9)
 #        label  = mx.symbol.SoftmaxOutput(data = x, name = 'softmax')
 
         label = mx.symbol.LinearRegressionOutput(data=x, label=label) 
@@ -49,14 +53,14 @@ class nn_wrapper():
         return metrics.log_loss(label, pred_prob)
 
     def fit(self, X, y):
-        X = self.pre.fit_transform(X)
+#        X = self.pre.fit_transform(X)
 
         net = self.get_mlp()
         self.model = mx.model.FeedForward(
             ctx                = mx.gpu(),
             symbol             = net,
-            num_epoch          = 100,
-            learning_rate      = 0.03,
+            num_epoch          = 150,
+            learning_rate      = 0.05,
             momentum           = 0.9,
             wd                 = 0.000001
                 ,initializer        = mx.init.Xavier(factor_type="in", magnitude=1)
@@ -80,9 +84,12 @@ class nn_wrapper():
             logger = logger)
         
     def predict_proba(self, X):
-        X = self.pre.transform(X)
+#        X = self.pre.transform(X)
         preds = self.model.predict(X)
         return preds
 #        return np.hstack([preds, preds])
-        
+    def predict(self, X):
+#        X = self.pre.transform(X)
+        preds = self.model.predict(X)
+        return preds
     

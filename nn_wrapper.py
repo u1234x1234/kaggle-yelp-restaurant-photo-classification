@@ -1,11 +1,9 @@
 import sys
 sys.path.append('../mxnet/python')
 import numpy as np
-from sklearn import cross_validation, metrics
-from sklearn import ensemble, neighbors, decomposition, preprocessing
+from sklearn import metrics, ensemble, neighbors, decomposition, preprocessing
 import mxnet as mx
 import logging
-from keras.utils import np_utils
 
 class nn_wrapper():
     def __init__(self):
@@ -14,21 +12,21 @@ class nn_wrapper():
     def get_mlp(self):
         data = mx.symbol.Variable('data')
         label = mx.symbol.Variable('label')
-        x  = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=1024)
+        x  = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=2048)
         x = mx.symbol.BatchNorm(data=x)
-#        x = mx.symbol.Activation(data = x, name='relu1', act_type="relu")
         x = mx.symbol.LeakyReLU(data=x)
-#        x = mx.symbol.BatchNorm(data=x) 
         x = mx.symbol.Dropout(data = x, p=0.5)
-        x  = mx.symbol.FullyConnected(data = x, name = 'fc2', num_hidden=512)
-#        x = mx.symbol.BatchNorm(data=x)
+
+        x  = mx.symbol.FullyConnected(data = x, name = 'fc2', num_hidden=1024)
         x = mx.symbol.LeakyReLU(data=x)
-#        x = mx.symbol.Activation(data = x, act_type="relu")
-        x = mx.symbol.Dropout(data = x, p=0.5)
         
         x  = mx.symbol.FullyConnected(data = x, name = 'fc3', num_hidden=512)
-#        x = mx.symbol.BatchNorm(data=x)
-        x = mx.symbol.LeakyReLU(data=x)    
+        x = mx.symbol.LeakyReLU(data=x)
+
+
+#        x  = mx.symbol.FullyConnected(data = x, name = 'fc33', num_hidden=512)
+#        x = mx.symbol.LeakyReLU(data=x)
+        
 #        x  = mx.symbol.FullyConnected(data = x, name = 'fc33', num_hidden=128)
 #        x = mx.symbol.BatchNorm(data=x)
 #        x = mx.symbol.LeakyReLU(data=x)    
@@ -43,13 +41,12 @@ class nn_wrapper():
     #    x = mx.symbol.Activation(data = x, name='relu3', act_type="relu")
     #    x = mx.symbol.Dropout(data = x, p=0.5)
         x  = mx.symbol.FullyConnected(data = x, name='fc4', num_hidden=9)
-#        label  = mx.symbol.SoftmaxOutput(data = x, name = 'softmax')
+#        label  = mx.symbol.SoftmaxOutput(data = x, label=label)
 
         label = mx.symbol.LinearRegressionOutput(data=x, label=label) 
         return label
     
     def logloss(self, label, pred_prob):
-    #    label = np_utils.to_categorical(label)
         return metrics.log_loss(label, pred_prob)
 
     def fit(self, X, y):
@@ -63,14 +60,13 @@ class nn_wrapper():
             learning_rate      = 0.05,
             momentum           = 0.9,
             wd                 = 0.000001
-                ,initializer        = mx.init.Xavier(factor_type="in", magnitude=1)
+             ,initializer        = mx.init.Xavier(factor_type="in", magnitude=1)
 #            ,initializer       = mx.initializer.Normal(sigma=0.01)
+#            ,initializer = mx.init.Xavier(factor_type="in", rnd_type="gaussian", magnitude=2.0)  #MSRA
             )
         
         batch_size = 256
-#        data_shape = (batch_size, 1024)
         
-#        train_iter = mx.io.NDArrayIter(X, y, batch_size = batch_size, shuffle=True)
         train_iter = mx.io.NDArrayIter({'data':X}, {'label':y}, batch_size=batch_size, shuffle=True) 
         
         logger = logging.getLogger()

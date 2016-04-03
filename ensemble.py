@@ -50,25 +50,25 @@ class svr_wrapper:
 nn_clf = nn_wrapper()
         
 features = [
-           ('21k_1024.npy', sklearn.linear_model.LogisticRegression(C=100)),
+#           ('21k_1024.npy', sklearn.linear_model.LogisticRegression(C=100)),
 #           ('v3_2048.npy', sklearn.linear_model.LogisticRegression(C=100)),
 #           ('res_full_l2.npy', sklearn.linear_model.LogisticRegression(C=1)),
             ('21k_50k_2048.npy', sklearn.linear_model.LogisticRegression(C=100)),
-#           ('21k_v3_3072.npy', sklearn.linear_model.LogisticRegression(C=100)),
-#            ('21k_v3_128.npy', sklearn.linear_model.LogisticRegression(C=50)),
+           ('21k_v3_3072.npy', sklearn.linear_model.LogisticRegression(C=100)),
+            ('21k_v3_128.npy', sklearn.linear_model.LogisticRegression(C=50)),
 #            ('21k.npy', sklearn.linear_model.LogisticRegression(C=50)),
            ('fisher.npy', sklearn.linear_model.LogisticRegression(C=2)),
-#            ('v3_full.npy', sklearn.linear_model.LogisticRegression(C=100)),
-#            ('21k_full.npy', sklearn.linear_model.LogisticRegression(C=100)),
-#            ('vlad_2_21k_full.npy', sklearn.linear_model.LogisticRegression(C=1)),
+            ('v3_full.npy', sklearn.linear_model.LogisticRegression(C=100)),
+            ('21k_full.npy', sklearn.linear_model.LogisticRegression(C=100)),
+            ('vlad_2_21k_full.npy', sklearn.linear_model.LogisticRegression(C=1)),
 #           ('21k_v3_128.npy', xgb_wrapper()),
 #           ('fisher_21k_1024.npy', sklearn.linear_model.LogisticRegression(C=2))
 #           ('v3.npy', sklearn.linear_model.LogisticRegression(C=100)),
             
             ('vlad_2_21k_full.npy', xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=100, nthread=8,
                                 max_depth=3, subsample=0.8, colsample_bytree=0.8)),
-#            ('21k_50k_2048.npy', xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=100, nthread=8,
-#                max_depth=3, subsample=0.8, colsample_bytree=0.8))
+#            ('jo.npy', xgb.sklearn.XGBClassifier(learning_rate=0.1, n_estimators=100, nthread=8,
+#                max_depth=4, subsample=0.9, colsample_bytree=0.9))
             ]
 
 def train_predict(clf, X_train, y_train, X_test):
@@ -78,23 +78,23 @@ def train_predict(clf, X_train, y_train, X_test):
         preds_br[:, i] = clf.predict_proba(X_test)[:, 1]   
 
     nn_preds = np.array([])
-    n_iter = 2
-    for i in range(n_iter):    
+    n_iter = 20
+    for i in range(n_iter):
         nn_clf.fit(X_train, y_train)
         s_preds = nn_clf.predict_proba(X_test)
         nn_preds = nn_preds + s_preds if nn_preds.size else s_preds
     nn_preds = (nn_preds / n_iter)
     
-#        n_chains = 20
-#        preds_cc = np.zeros((X_val.shape[0], 9))
-#        for i in range(n_chains):
-#            cc = ClassifierChain(clf)
-#            cc.fit(X_train, y_train)
-#            preds_cc = preds_cc + cc.predict(X_val)
-#        preds_cc = preds_cc / n_chains
-#        preds_br = (preds_br + 2*preds_cc) / 3
+    n_chains = 20
+    preds_cc = np.zeros((X_test.shape[0], 9))
+    for i in range(n_chains):
+        cc = ClassifierChain(clf)
+        cc.fit(X_train, y_train)
+        preds_cc = preds_cc + cc.predict(X_test)
+    preds_cc = preds_cc / n_chains
 
-    preds_br = (preds_br + 3*nn_preds) / 4
+    preds_br = (preds_br + 2*nn_preds + 2*preds_cc) / 5
+    
     return preds_br
 
 #kf = cross_validation.KFold(2000, n_folds=5, shuffle=True, random_state=0)

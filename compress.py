@@ -1,12 +1,12 @@
-# -*- coding: utf-8 -*-
+1# -*- coding: utf-8 -*-
 import numpy as np
 from sklearn import preprocessing
-
+from scipy.linalg import qr
 model_names = ['model/inception-v3/feat_v3_6crop2',
                  'model/21k/feat_21k_6',
                  'model/fb.resnet.torch/pretrained/features101',
                  'color',
-                 '/mnt/disk/data/feat_21k_21k_6crop_2048'
+                 '/mnt/disk/data/feat_21k_50k_6crop_2048'
 ]
 
 train_size = 234842
@@ -15,12 +15,14 @@ train_size = 234842
 #x2 = np.fromfile(model_names[1]+'_train', dtype=np.float32).reshape(train_size, -1)
 #x3 = np.fromfile(model_names[2]+'_train', dtype=np.float32).reshape(train_size, -1)
 #x4 = np.fromfile(model_names[3]+'_train', dtype=np.int64).astype(np.float32).reshape(train_size, -1)
-x = np.fromfile(model_names[1]+'_train', dtype=np.float32).reshape(train_size, -1)
+x = np.fromfile(model_names[4]+'_train', dtype=np.float32).reshape(train_size, -1)
 
-preprocessing.normalize(x, copy=False)
-print(x)
+x = x[:, :256]
+
+q, r = qr(np.random.uniform(0, 1, (256, 256)))
+x = x.dot(q).astype(np.float32)
+#preprocessing.normalize(x, copy=False)
 #x = np.concatenate([x5], axis=1)
-
 #n_comp = 64
 #mean = np.mean(x, axis=0)
 #x = x - mean

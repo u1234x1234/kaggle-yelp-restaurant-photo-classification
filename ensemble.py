@@ -60,7 +60,7 @@ features = [
            ('fisher.npy', sklearn.linear_model.LogisticRegression(C=2)),
             ('v3_full.npy', sklearn.linear_model.LogisticRegression(C=100)),
             ('21k_full.npy', sklearn.linear_model.LogisticRegression(C=100)),
-            ('vlad_2_21k_full.npy', sklearn.linear_model.LogisticRegression(C=1)),
+#            ('vlad_2_21k_full.npy', sklearn.linear_model.LogisticRegression(C=1)),
 #           ('21k_v3_128.npy', xgb_wrapper()),
 #           ('fisher_21k_1024.npy', sklearn.linear_model.LogisticRegression(C=2))
 #           ('v3.npy', sklearn.linear_model.LogisticRegression(C=100)),

@@ -93,7 +93,7 @@ def train_predict(clf, X_train, y_train, X_test):
         preds_cc = preds_cc + cc.predict(X_test)
     preds_cc = preds_cc / n_chains
 
-    preds_br = (preds_br + 2*nn_preds + 2*preds_cc) / 5
+    preds_br = (preds_br + 3*nn_preds + 2*preds_cc) / 6
     
     return preds_br
 
@@ -142,7 +142,7 @@ for feature, clf in features:
 if len(preds.shape) == 3:
     preds = preds.mean(axis=2)
 
-preds = preds > 0.42
+preds = preds > 0.44
 
 f = open('res', 'w')
 print('business_id,labels', file=f)

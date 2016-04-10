@@ -12,36 +12,25 @@ class nn_wrapper():
     def get_mlp(self):
         data = mx.symbol.Variable('data')
         label = mx.symbol.Variable('label')
-        x  = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=2048)
+        x = mx.symbol.FullyConnected(data = data, name='fc1', num_hidden=2500)
         x = mx.symbol.BatchNorm(data=x)
         x = mx.symbol.LeakyReLU(data=x)
         x = mx.symbol.Dropout(data = x, p=0.5)
 
         x  = mx.symbol.FullyConnected(data = x, name = 'fc2', num_hidden=1024)
         x = mx.symbol.LeakyReLU(data=x)
+#        x = mx.symbol.Activation(data = x, act_type="relu")
+        x = mx.symbol.Dropout(data = x, p=0.5)
         
-        x  = mx.symbol.FullyConnected(data = x, name = 'fc3', num_hidden=512)
-        x = mx.symbol.LeakyReLU(data=x)
-
-
-#        x  = mx.symbol.FullyConnected(data = x, name = 'fc33', num_hidden=512)
-#        x = mx.symbol.LeakyReLU(data=x)
-        
-#        x  = mx.symbol.FullyConnected(data = x, name = 'fc33', num_hidden=128)
+        x = mx.symbol.FullyConnected(data = x, name = 'fc3', num_hidden=512)
 #        x = mx.symbol.BatchNorm(data=x)
-#        x = mx.symbol.LeakyReLU(data=x)    
-#        x = mx.symbol.Dropout(data = x, p=0.5)
-        
-    #    x  = mx.symbol.FullyConnected(data = x, name = 'fc22', num_hidden=256)
-    #    x = mx.symbol.BatchNorm(data=x)
-    #    x = mx.symbol.LeakyReLU(data=x)
-    #    x = mx.symbol.Activation(data = x, act_type="relu")
-    #    x = mx.symbol.Dropout(data = x, p=0.5)
-    #    x  = mx.symbol.FullyConnected(data = x, name = 'fc3', num_hidden = 200)
-    #    x = mx.symbol.Activation(data = x, name='relu3', act_type="relu")
-    #    x = mx.symbol.Dropout(data = x, p=0.5)
-        x  = mx.symbol.FullyConnected(data = x, name='fc4', num_hidden=9)
-#        label  = mx.symbol.SoftmaxOutput(data = x, label=label)
+#        x = mx.symbol.LeakyReLU(data=x)
+        x = mx.symbol.Activation(data = x, act_type="relu")
+
+
+        x = mx.symbol.FullyConnected(data = x, name='fc4', num_hidden=9)
+        x = mx.symbol.Flatten(data = x)
+#        label  = mx.symbol.Softmax(data = x, name='sofmax', multi_output=True)
 
         label = mx.symbol.LinearRegressionOutput(data=x, label=label) 
         return label
@@ -56,8 +45,8 @@ class nn_wrapper():
         self.model = mx.model.FeedForward(
             ctx                = mx.gpu(),
             symbol             = net,
-            num_epoch          = 150,
-            learning_rate      = 0.05,
+            num_epoch          = 100,
+            learning_rate      = 0.08,
             momentum           = 0.9,
             wd                 = 0.000001
              ,initializer        = mx.init.Xavier(factor_type="in", magnitude=1)
@@ -65,7 +54,7 @@ class nn_wrapper():
 #            ,initializer = mx.init.Xavier(factor_type="in", rnd_type="gaussian", magnitude=2.0)  #MSRA
             )
         
-        batch_size = 256
+        batch_size = 200
         
         train_iter = mx.io.NDArrayIter({'data':X}, {'label':y}, batch_size=batch_size, shuffle=True) 
         

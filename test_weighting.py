@@ -45,7 +45,7 @@ def f(weights):
        preds[:, :, i] *= weights[i]           
 
    preds = np.mean(preds, axis=2)
-   preds = preds > 0.2237
+   preds = preds > 0.224
 
    return preds
        

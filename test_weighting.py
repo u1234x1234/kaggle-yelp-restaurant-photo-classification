@@ -45,7 +45,7 @@ def f(weights):
        preds[:, :, i] *= weights[i]           
 
    preds = np.mean(preds, axis=2)
-   preds = preds > 0.205
+   preds = preds > 0.2237
 
    return preds
        
@@ -54,8 +54,8 @@ weights = np.array([1/6, 1, 2/6,
                     1/6, 1, 2/6,
                     1/6, 1, 2/6,
                     1/6, 1, 2/6,
-                    1/6, 1, 0,
-                    0, 1, 0,
+                    1/6, 1, 2/6,
+                    1/6, 1, 2/6,
                     4.6])
 preds = f(weights)
 #n_iter = 1000

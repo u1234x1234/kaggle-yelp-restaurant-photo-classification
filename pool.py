@@ -33,8 +33,8 @@ def gen_features(biz_dict, filename):
             for label in row[1].split(' '):
                 y[i, label] = 1
         features = np.array(biz_dict.get(biz_id))
-#        biz_x = features.mean(axis=0)
-        biz_x = np.hstack([features.mean(axis=0), features.shape[0]])
+        biz_x = features.mean(axis=0)
+#        biz_x = np.hstack([features.mean(axis=0), features.shape[0]])
         x = np.vstack((x, biz_x)) if x.size else biz_x
         if i % 100 == 0:
             print(i)
@@ -53,7 +53,7 @@ for mode, filename in [('test', 'sample_submission.csv'), ('train', 'train.csv')
 
     biz_dict = read_data(mode)
     x, y = gen_features(biz_dict,  filename)
-    np.save(mode + '_21k_1024_cnt', x)
+    np.save(mode + '_21k_1024', x)
     
 #    vlad_biz_train = read_vlad('vlad', mode)
 #    x, y = gen_features(vlad_biz_train, filename)

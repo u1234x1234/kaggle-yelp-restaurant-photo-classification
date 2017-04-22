@@ -1,5 +1,6 @@
 # [Kaggle Yelp Restaurant Photo Classification](https://www.kaggle.com/c/yelp-restaurant-photo-classification)
 
+Description of the my approach to this problem was published on the [Kaggle's blog](http://blog.kaggle.com/2016/04/28/yelp-restaurant-photo-classification-winners-interview-1st-place-dmitrii-tsybulevskii/).  
 There is no click-get-submission-file script here, only set of the small scripts for different parts of the final solution.
 
 [/model/](https://github.com/u1234x1234/kaggle-yelp-restaurant-photo-classification/tree/master/model/21k)  
